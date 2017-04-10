@@ -8,6 +8,7 @@
 
 import Foundation
 import Socket
+import Rexy
 
 extension String {
     /// An `NSRange` that represents the full range of the string.
@@ -16,8 +17,6 @@ extension String {
     }
 }
 
-
-
 enum Command: String {
     case NOTICE
     case JOIN
@@ -25,6 +24,85 @@ enum Command: String {
     case USER
     case NICK
     case ERROR
+    case PING
+    case PONG
+}
+
+struct Message {
+    enum Prefix {
+        case server(name: String)
+        case user(user: String)
+    }
+    
+    enum Command: String {
+        case NOTICE
+        case JOIN
+        case PRIVMSG
+        case USER
+        case NICK
+        case ERROR
+        case PING
+        case PONG
+    }
+    
+    let command: Command
+    let arguments: [String]
+    
+    init(command: Command, arguments: [String]) {
+        self.command = command
+        self.arguments = arguments
+    }
+    
+    init?(line: String) {
+        let RFC2812ParsingRegexp = try? Regex("^(:[^ ]+ )?([a-zA-Z]+|[0-9]{3})( .+)?$")
+        guard var groups = RFC2812ParsingRegexp?.groups(line) else {
+            return nil
+        }
+        
+        guard groups.count > 0 else {
+            return nil
+        }
+        
+        let prefixString: String?
+        if groups.first?.characters.first == ":" {
+            prefixString = groups.removeFirst()
+        } else {
+            prefixString = nil
+        }
+    
+        guard groups.count > 0 else {
+            return nil
+        }
+        
+        let commandString = groups.removeFirst()
+        
+        let paramsString: String?
+        if groups.count > 0 {
+            paramsString = groups.removeFirst().trimmingCharacters(in: .whitespaces)
+        } else {
+            paramsString = nil
+        }
+        
+        var params: [String] = paramsString?.components(separatedBy: " :") ?? []
+        
+        if paramsString?.characters.first != ":" {
+            let middle = params.removeFirst().components(separatedBy: " ")
+            params = middle + params
+        }
+        
+        guard let command = Command(rawValue: commandString) else {
+            return nil
+        }
+        
+        self.init(command: command, arguments: params)
+    }
+    
+    var string: String {
+        let argumentsString = arguments
+            .map { $0.contains(" ") ? ":\($0)" : $0 }
+            .joined(separator: " ")
+        return "\(command.rawValue) \(argumentsString)"
+    }
 }
 
 class IRC: Gateway {
@@ -69,8 +147,8 @@ class IRC: Gateway {
         self.state = .disconnected
     }
     
-    func send(_ message: Message, to context: Context) {
-        try? self.send(.PRIVMSG, [context.uuid, message.content])
+    func send(_ message: String, to context: Context) {
+        try? self.send(.PRIVMSG, [context.uuid, message])
     }
     
     func join(_ channel: Channel) {
@@ -91,10 +169,6 @@ class IRC: Gateway {
         self.socket.close()
     }
     
-    
-    static let RFC2812ParsingRegexp = try? NSRegularExpression(pattern: "^(?::(([^@! ]*)(?:(?:!([^@]*))?@([^ ]*))?) )?([^ ]+)((?: [^: ][^ ]*){0,14})(?: :?(.*))?$",
-                                          options: [.anchorsMatchLines])
-    
     private func parse(data: String) {
         if data.isEmpty {
             return
@@ -107,88 +181,53 @@ class IRC: Gateway {
             if line.isEmpty {
                 continue
             }
-
-            guard let match = IRC.RFC2812ParsingRegexp?.matches(in: line, options: [], range: line.range).first else {
-                print("Line doesn't match?")
-                continue
-            }
             
             print("[SERVER] \(line)")
             
-            var components: [String?] = []
-            for i in 0..<match.numberOfRanges {
-                let range = match.rangeAt(i)
-                
-                let string: String?
-                if range.location > line.characters.count {
-                    string = nil
-                } else {
-                    string = (line as NSString).substring(with: range)
-                }
-                components.append(string)
-            }
-            
-            guard let commandValue = components[5] else { continue }
-            guard let command = Command(rawValue: commandValue) else {
+            guard let message = Message(line: line) else {
                 continue
             }
             
-            var arguments: [String] = []
-            
-            func extract(argumentString: String?) -> [String] {
-                guard let string = argumentString else { return [] }
-                
-                return string.components(separatedBy: .whitespaces).filter { $0.isEmpty == false }
-            }
-            
-//            let arguments = components[6]?
-//                .components(separatedBy: .whitespaces)
-//                .append(contentsOf: components[7]?.components(separatedBy: .whitespaces))
-//                .filter { $0.isEmpty == false }
-            
-            arguments.append(contentsOf: extract(argumentString: components[6]))
-            arguments.append(contentsOf: extract(argumentString: components[7]))
-
-            dump(components)
-            dump(arguments)
-            handle(command, arguments: arguments)
+            handle(message)
         }
     }
     
-    private func handle(_ command: Command, arguments: [String]) {
-        switch command {
+    private func handle(_ message: Message) {
+        switch message.command {
         case .NOTICE:
             state = .connected
         case .ERROR:
             state = .disconnected
         case .JOIN:
-            self.delegate?.gateway(self, joinedChannel: Channel(UUID: arguments.first!))
+            self.delegate?.gateway(self, joinedChannel: Channel(UUID: message.arguments.first!))
         case .PRIVMSG:
             let context: Context
-            let source = arguments.first!
+            let source = message.arguments[0]
             if source.characters.first == "#" {
                 context = .channel(channel: Channel(UUID: source))
             } else {
                 context = .user(user: User(UUID: source))
             }
             
-            self.delegate?.gateway(self, receivedMessage: Message(content: arguments[1]), context: context)
+            self.delegate?.gateway(self, receivedMessage: message.arguments[1], context: context)
+        case .PING:
+            try? self.send(.PONG, message.arguments)
         default:
             print("No idea how to handle this, waving hands")
         }
     }
     
-    private func send(_ command: Command, _ arguments: [String] = []) throws {
+    private func send(_ command: Message.Command, _ arguments: [String]) throws {
+        try send(Message(command: command, arguments: arguments))
+    }
+    
+    private func send(_ message: Message) throws {
         guard self.connected else {
             return
         }
         
-        let argumentsString = arguments
-            .map { $0.contains(" ") ? ":\($0)" : $0 }
-            .joined(separator: " ")
-        let command = "\(command.rawValue) \(argumentsString)"
-        print("[CLIENT] \(command)")
-        try socket.write(from: "\(command)\n")
+        print("[CLIENT] \(message.string)")
+        try socket.write(from: "\(message.string)\n")
     }
     
     private func didChangeState(to newState: GatewayState) {

@@ -11,6 +11,6 @@ import Foundation
 class HelloPlugin: Plugin {
     
     func bot(_ bot: Bot, gateway: Gateway, joinedChannel channel:Channel) {
-        gateway.send(Message(content: "Siema, co tam?"), to: .channel(channel: channel))
+        gateway.send("Siema, co tam?", to: .channel(channel: channel))
     }
 }

@@ -2,10 +2,16 @@
   "autoPin": true,
   "pins": [
     {
+      "package": "Rexy",
+      "reason": null,
+      "repositoryURL": "https://github.com/justMaku/Rexy.git",
+      "version": "0.6.2"
+    },
+    {
       "package": "Socket",
       "reason": null,
       "repositoryURL": "https://github.com/IBM-Swift/BlueSocket",
-      "version": "0.12.43"
+      "version": "0.12.44"
     }
   ],
   "version": 1

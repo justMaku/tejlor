@@ -10,11 +10,11 @@ import Foundation
 
 class TermsPlugin: Plugin {
     
-    func bot(_ bot: Bot, gateway: Gateway, receivedMessage message: Message, context: Context) {
-        guard message.content == ",_," else {
+    func bot(_ bot: Bot, gateway: Gateway, receivedMessage message: String, context: Context) {
+        guard message == ",_," else {
             return
         }
         
-        gateway.send(Message(content: "JAKIS PROBLEM KURWA?!?"), to: context)
+        gateway.send("JAKIS PROBLEM KURWA?!?", to: context)
     }
 }

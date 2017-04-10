@@ -54,7 +54,7 @@ extension Bot: GatewayDelegate {
         plugins.forEach { $0.bot(self, gateway: gateway, leftChannel: channel) }
     }
     
-    func gateway(_ gateway: Gateway, receivedMessage message: Message, context: Context) {
+    func gateway(_ gateway: Gateway, receivedMessage message: String, context: Context) {
         plugins.forEach { $0.bot(self, gateway: gateway, receivedMessage: message, context: context) }
     }
 }

@@ -8,10 +8,6 @@
 
 import Foundation
 
-struct Message {
-    var content: String
-}
-
 protocol Server {}
 
 struct User {
@@ -41,7 +37,7 @@ protocol GatewayDelegate {
     func gateway(_ gateway: Gateway, joinedChannel channel: Channel)
     func gateway(_ gateway: Gateway, leftChannel channel: Channel)
 
-    func gateway(_ gateway: Gateway, receivedMessage message: Message, context: Context)
+    func gateway(_ gateway: Gateway, receivedMessage message: String, context: Context)
 }
 
 enum GatewayState {
@@ -57,11 +53,19 @@ protocol Gateway {
     func connect() throws
     func disconnect()
     func join(_ channel: Channel)
-    func send(_ message: Message, to context: Context)
+    func send(_ message: String, to context: Context)
 }
 
 extension Gateway {
     var connected: Bool {
         return state == .connected
+    }
+    
+    func send(_ message: String, to channel: Channel) {
+        send(message, to: .channel(channel: channel))
+    }
+    
+    func send(_ message: String, to user: User) {
+        send(message, to: .user(user: user))
     }
 }
