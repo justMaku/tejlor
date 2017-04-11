@@ -1,11 +1,19 @@
 import Foundation
 
-//disable output buffering
-setbuf(__stdoutp, nil);
+#if os(Linux)
+    import Glibc
+#else
+    import Darwin.C
+#endif
+
+func debug(_ val: String) {
+    print(val)
+    fflush(stdout)
+}
 
 var runLoop = RunLoop.current
 
-print("Welcome to New York")
+debug("Welcome to New York")
 
 let irc = try! IRC(server: IRC.Server(host: "irc.freenode.net", port: 6667))
 let hello = HelloPlugin()
@@ -19,10 +27,8 @@ bot.register(terms)
 
 try? bot.connect()
 
-print("Bot started")
+debug("Bot started")
 
-while (runLoop.run(mode: .defaultRunLoopMode, before: Date.distantFuture)) {
-    // do nothing
-}
+while (runLoop.run(mode: .defaultRunLoopMode, before: .distantFuture)) {}
 
-print("Quitting now, bye")
+debug("Quitting now, bye")

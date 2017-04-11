@@ -185,7 +185,7 @@ class IRC: Gateway {
                 continue
             }
             
-            print("[SERVER] \(line)")
+            debug("[SERVER] \(line)")
             
             guard let message = Message(line: line) else {
                 continue
@@ -216,7 +216,7 @@ class IRC: Gateway {
         case .PING:
             try? self.send(.PONG, message.arguments)
         default:
-            print("No idea how to handle this, waving hands")
+            debug("No idea how to handle this, waving hands")
         }
     }
     
@@ -229,7 +229,7 @@ class IRC: Gateway {
             return
         }
         
-        print("[CLIENT] \(message.string)")
+        debug("[CLIENT] \(message.string)")
         try socket.write(from: "\(message.string)\n")
     }
     
