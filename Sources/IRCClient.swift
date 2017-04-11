@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import Dispatch
 import Socket
 import Rexy
 
@@ -161,7 +162,9 @@ class IRC: Gateway {
                 guard let data = try self.socket.readString() else {
                     break
                 }
-                self.parse(data: data)
+                DispatchQueue.main.async {
+                    self.parse(data: data)
+                }
             } catch {
                 break
             }
