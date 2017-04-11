@@ -34,5 +34,9 @@ try? bot.connect()
 
 while true {
     let command = readLine()
-    print(command)
+    if command == "q" {
+        break
+    }
 }
+
+print("Quitting now, bye")
